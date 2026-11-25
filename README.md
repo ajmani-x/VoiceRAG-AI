@@ -1,60 +1,162 @@
+
 # VoiceRAG-AI
 
-A voice-enabled Retrieval-Augmented Generation (RAG) project. The included n8n workflows provide the document-ingestion and question-answering backend intended to be connected to an ElevenLabs Voice AI Agent.
+VoiceRAG-AI is a voice-enabled Retrieval-Augmented Generation (RAG) system designed to let users interact with a custom knowledge base through natural voice conversations.
 
-## Workflows included
+The project combines ElevenLabs Voice AI, n8n workflow orchestration, Google Gemini, Cohere embeddings and Supabase vector search to generate context-aware responses.
 
-### 1. Document ingestion — `workflows/document-ingestion.json`
+## Demo
 
-1. Watches a selected Google Drive folder for newly created files (polling every minute).
-2. Downloads each detected file.
-3. Loads the file content and attaches the source filename as metadata.
-4. Splits text using a Recursive Character Text Splitter (500-character chunks, 200-character overlap).
-5. Generates embeddings with Cohere `embed-english-v3.0`.
-6. Inserts document chunks and embeddings into the Supabase `documents` table.
+[![Watch the Demo](https://img.youtube.com/vi/DTLtrid8o9g/maxresdefault.jpg)](https://youtu.be/DTLtrid8o9g)
 
-### 2. RAG query API — `workflows/rag-query.json`
+[Watch the full project demonstration on YouTube](https://youtu.be/DTLtrid8o9g)
 
-1. Receives a POST request through an n8n Webhook.
-2. Reads the question from `body.Question`.
-3. Uses a Gemini-powered AI Agent to answer the question.
-4. Uses the Supabase Vector Store as a retrieval tool, with Cohere embeddings.
-5. Uses Simple Memory keyed by `body.sessionId` (or `default` if no session ID is supplied).
-6. Returns the agent response through Respond to Webhook.
+## Key Features
 
-The query workflow's system prompt is currently tailored to a **space station handbook**. Update it if your document collection covers another subject.
+- Voice-based interaction through ElevenLabs.
+- Automated document ingestion from Google Drive.
+- Semantic search using Supabase Vector Store.
+- Context-grounded response generation using Google Gemini.
+- Session-based conversational memory.
+- Webhook-based API integration.
+- Modular workflow architecture using n8n.
 
-## Import and configure in n8n
+## Tech Stack
 
-1. In n8n, choose **Workflows → Import from File**.
-2. Import `workflows/document-ingestion.json`.
-3. Import `workflows/rag-query.json`.
-4. Reconnect credentials in the relevant nodes:
-   - Google Drive OAuth2
-   - Cohere API
-   - Supabase API
-   - Google Gemini
-5. In the Google Drive Trigger, select the folder you want to watch.
-6. Confirm that your Supabase project has the required `documents` table and matching vector-search function/schema for your n8n Supabase Vector Store node.
-7. In the query workflow, configure the Webhook path and verify the expected request body.
-8. Test both workflows manually before activating them.
+| Technology | Purpose |
+|---|---|
+| n8n | Workflow orchestration |
+| ElevenLabs | Conversational Voice AI |
+| Google Gemini | LLM response generation |
+| Cohere | Text embeddings |
+| Supabase | Vector storage and semantic retrieval |
+| Google Drive | Document ingestion |
+| Webhooks | API communication |
 
-## Query webhook contract
+## System Architecture
 
-The query workflow reads these fields:
+### Document Ingestion Pipeline
+
+```mermaid
+flowchart TD
+    A[Google Drive] --> B[n8n Trigger]
+    B --> C[Download Document]
+    C --> D[Text Extraction and Chunking]
+    D --> E[Cohere Embeddings]
+    E --> F[Supabase Vector Store]
+```
+
+### Voice RAG Pipeline
+
+```mermaid
+flowchart TD
+    A[User Voice Input] --> B[ElevenLabs Voice Agent]
+    B --> C[n8n Webhook]
+    C --> D[Gemini AI Agent]
+    D <--> E[Supabase Vector Store]
+    D <--> F[Session Memory]
+    D --> G[Webhook Response]
+    G --> B
+    B --> H[Voice Response]
+```
+
+## How It Works
+
+### 1. Document Ingestion
+
+The document ingestion workflow automatically monitors a selected Google Drive folder for newly created files.
+
+- Downloads and processes newly detected documents.
+- Preserves source filenames as metadata.
+- Splits text into 500-character chunks with a 200-character overlap.
+- Generates embeddings using Cohere `embed-english-v3.0`.
+- Stores document chunks and embeddings in Supabase for semantic retrieval.
+
+### 2. RAG Query Processing
+
+The query workflow exposes a webhook-based API for processing user questions.
+
+- Receives the question and session identifier through a POST request.
+- Processes the query using a Gemini-powered AI agent.
+- Retrieves relevant document context from Supabase.
+- Maintains conversational context using session-based memory.
+- Returns the generated response through the webhook.
+
+### 3. Voice AI Integration
+
+ElevenLabs serves as the conversational voice interface. The voice agent can call the n8n query webhook as an external tool, allowing users to interact with the knowledge base through spoken questions and responses.
+
+## Repository Structure
+
+```text
+VoiceRAG-AI/
+├── workflows/
+│   ├── document-ingestion.json
+│   └── rag-query.json
+└── README.md
+```
+
+## Setup and Configuration
+
+### Prerequisites
+
+- n8n instance
+- Supabase project
+- Cohere API key
+- Google Gemini API key
+- Google Drive OAuth2 credentials
+- ElevenLabs account
+
+### Installation
+
+1. Clone the repository.
+
+```bash
+git clone https://github.com/ajmani-x/VoiceRAG-AI.git
+cd VoiceRAG-AI
+```
+
+2. Import both JSON workflows into n8n.
+3. Configure the required API credentials.
+4. Select the Google Drive folder for document ingestion.
+5. Configure the Supabase `documents` table and compatible vector-search function.
+6. Configure and activate the query webhook.
+7. Connect the webhook to an ElevenLabs agent as an external tool.
+8. Test both workflows before using the voice agent.
+
+## API Reference
+
+The query webhook accepts a POST request with the following JSON body:
 
 ```json
 {
   "Question": "What does the handbook say about emergency procedures?",
-  "sessionId": "optional-conversation-session-id"
+  "sessionId": "conversation-001"
 }
 ```
 
-Send this JSON as the body of a POST request to the n8n Webhook URL. The `sessionId` should remain stable during a conversation if you want Simple Memory to associate turns with the same session.
+| Parameter | Description |
+|---|---|
+| `Question` | User's question |
+| `sessionId` | Optional identifier for maintaining conversational memory |
 
-The exact response payload depends on the n8n Respond to Webhook node configuration and execution output. Test it in your own n8n instance before configuring ElevenLabs to consume it.
+Use a consistent session ID throughout a conversation. If no session ID is provided, the workflow uses `default`.
 
-## ElevenLabs integration
+The response structure depends on the n8n Respond to Webhook node configuration.
 
-The two included files are the RAG backend workflows. They do **not** include an ElevenLabs agent export or agent configuration. Configure an ElevenLabs tool to call the deployed query webhook, pass the user's question in `Question`, and pass a stable conversation/session identifier in `sessionId` if needed. Map the returned n8n response field to the agent's tool output after verifying the actual webhook response.
+## Use Cases
+
+- Voice-enabled knowledge assistants
+- Internal company documentation assistants
+- Customer support systems
+- Interactive educational assistants
+- Conversational access to technical manuals
+
+## Project Scope
+
+The current demonstration uses a space station handbook as its knowledge base. The system can be adapted to other domains by updating the document collection and agent system prompt.
+
+The repository contains both n8n backend workflows. The ElevenLabs agent configuration must be set up separately.
+
+
 
