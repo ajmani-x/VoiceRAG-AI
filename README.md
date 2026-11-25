@@ -7,8 +7,6 @@ The project combines ElevenLabs Voice AI, n8n workflow orchestration, Google Gem
 
 ## Demo
 
-[![Watch the Demo](https://youtu.be/DTLtrid8o9g)
-
 [Watch the full project demonstration on YouTube](https://youtu.be/DTLtrid8o9g)
 
 ## Key Features
